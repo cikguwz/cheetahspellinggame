@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spelling Lab Game</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap');
+        .font-fredoka { font-family: 'Fredoka One', cursive; }
+        .font-nunito { font-family: 'Nunito', sans-serif; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        @keyframes shake { 0%, 100% { transform: translateX(0) } 25% { transform: translateX(-5px) rotate(-2deg) } 75% { transform: translateX(5px) rotate(2deg) } }
+        .animate-shake { animation: shake 0.5s; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // ✅ FIX 1: Updated to new webhook URL
+        const GOOGLE_SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyiwaRn2RvcKQO90_nacv2pJ3KxEvNUwJ4ECgr5TDFK2YbB_6Op0I6JJtZoYLJLaKfE/exec";
+
+        // --- INLINE ICONS ---
+        const IconVolume2 = ({ size=24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>;
+        const IconPlay = ({ size=24, fill="none" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>;
+        const IconUserCircle = ({ size=24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="10" r="3"></circle><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"></path></svg>;
+        const IconBookOpen = ({ size=24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>;
+        const IconTarget = ({ size=24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>;
+        const IconCheckCircle = ({ size=24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>;
+        const IconRefresh = ({ size=24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>;
+        const IconDatabase = ({ size=24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>;
+        const IconTrophy = ({ size=24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>;
+        const IconLightbulb = ({ size=24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path></svg>;
+
+        // --- WORD LISTS ---
+        const STORY_WORDS = [
+            { word: "Spacesuit", emoji: "🧑‍🚀", blankSentence: "The astronaut put on a white ________ for the spacewalk.", fullSentence: "The astronaut put on a white spacesuit for the spacewalk." },
+            { word: "Journey", emoji: "🗺️", blankSentence: "We went on a long ________ across the galaxy.", fullSentence: "We went on a long journey across the galaxy." },
+            { word: "Alien", emoji: "👽", blankSentence: "A friendly green ________ waved hello.", fullSentence: "A friendly green alien waved hello." },
+            { word: "Planet", emoji: "🪐", blankSentence: "Mars is the red ________ in our solar system.", fullSentence: "Mars is the red planet in our solar system." },
+            { word: "Machine", emoji: "⚙️", blankSentence: "The loud ________ cut down the old trees.", fullSentence: "The loud machine cut down the old trees." },
+            { word: "Whispering", emoji: "🗣️", blankSentence: "The wind was ________ softly through the leaves.", fullSentence: "The wind was whispering softly through the leaves." },
+            { word: "Magical", emoji: "✨", blankSentence: "The tree roots had a ________ glowing power.", fullSentence: "The tree roots had a magical glowing power." },
+            { word: "Village", emoji: "🏘️", blankSentence: "All the people in the ________ cheered for the hero.", fullSentence: "All the people in the village cheered for the hero." },
+            { word: "Guardian", emoji: "🛡️", blankSentence: "Leo became the brave ________ of the woods.", fullSentence: "Leo became the brave guardian of the woods." },
+            { word: "River", emoji: "🌊", blankSentence: "The glowing roots connected to the rushing ________.", fullSentence: "The glowing roots connected to the rushing river." }
+        ];
+
+        const ELECTRICITY_WORDS = [
+            { word: "Electricity", emoji: "⚡", blankSentence: "We need ________ to power the lights in our house.", fullSentence: "We need electricity to power the lights in our house." },
+            { word: "Circuit", emoji: "🔄", blankSentence: "The current flows in a complete ________.", fullSentence: "The current flows in a complete circuit." },
+            { word: "Component", emoji: "🧩", blankSentence: "A battery is one ________ of a circuit.", fullSentence: "A battery is one component of a circuit." },
+            { word: "Battery", emoji: "🔋", blankSentence: "The ________ gives power to the small motor.", fullSentence: "The battery gives power to the small motor." },
+            { word: "Switch", emoji: "🕹️", blankSentence: "Turn on the ________ to light up the bulb.", fullSentence: "Turn on the switch to light up the bulb." },
+            { word: "Socket", emoji: "🔌", blankSentence: "Always be careful when plugging into the wall ________.", fullSentence: "Always be careful when plugging into the wall socket." },
+            { word: "Plug", emoji: "🔌", blankSentence: "Push the ________ into the socket to get power.", fullSentence: "Push the plug into the socket to get power." },
+            { word: "Motor", emoji: "🏎️", blankSentence: "The electric ________ made the toy car spin fast.", fullSentence: "The electric motor made the toy car spin fast." },
+            { word: "Bulb", emoji: "💡", blankSentence: "The bright glass ________ lit up the dark room.", fullSentence: "The bright glass bulb lit up the dark room." },
+            { word: "Cells", emoji: "🔋", blankSentence: "We put two ________ together to make a battery.", fullSentence: "We put two cells together to make a battery." }
+        ];
+
+        const ALL_WORDS = [...STORY_WORDS, ...ELECTRICITY_WORDS];
+
+        const STUDENT_PROFILES = [
+            { name: "Eamonn", emoji: "👦" },
+            { name: "Scarlett", emoji: "👧" },
+            { name: "Pavithra", emoji: "👧" },
+            { name: "Wei Ern", emoji: "👧" },
+            { name: "Malik Firdaus", emoji: "👦" },
+            { name: "Anonymous", emoji: "🕵️" }
+        ];
+
+        const getLocalBackup = (name) => {
+            if (!name || name === 'Anonymous') return { xp: 0, words: [] };
+            const data = localStorage.getItem(`spelling_backup_${name}`);
+            return data ? JSON.parse(data) : { xp: 0, words: [] };
+        };
+
+        const setLocalBackup = (name, data) => {
+            if (name && name !== 'Anonymous') localStorage.setItem(`spelling_backup_${name}`, JSON.stringify(data));
+        };
+
+        // ✅ FIX 2: Added missing savePlayerProfile function that was causing a ReferenceError crash
+        const savePlayerProfile = (name, data) => {
+            setLocalBackup(name, data);
+        };
+
+        // ==========================================
+        // MAIN APP COMPONENT
+        // ==========================================
+        function SpellingGame() {
+            const [screen, setScreen] = useState('home');
+            const [gameWords, setGameWords] = useState([]);
+            const [playerName, setPlayerName] = useState('');
+            const [selectedList, setSelectedList] = useState('');
+            const [mistakes, setMistakes] = useState([]);
+            const [wordsPlayedList, setWordsPlayedList] = useState([]);
+            const [playerMistakesDB, setPlayerMistakesDB] = useState([]);
+            const [playerXP, setPlayerXP] = useState(0);
+            const [sessionXP, setSessionXP] = useState(0);
+            const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+
+            useEffect(() => {
+                if (playerName && playerName !== 'Anonymous') {
+                    setIsLoadingProfile(true);
+                    fetch(`${GOOGLE_SHEET_WEBAPP_URL}?name=${encodeURIComponent(playerName)}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            setPlayerXP(data.xp || 0);
+                            setPlayerMistakesDB(data.words || []);
+                            setLocalBackup(playerName, data);
+                            setIsLoadingProfile(false);
+                        })
+                        .catch(err => {
+                            console.warn("Cloud fetch failed, using local backup:", err);
+                            const backup = getLocalBackup(playerName);
+                            setPlayerXP(backup.xp);
+                            setPlayerMistakesDB(backup.words);
+                            setIsLoadingProfile(false);
+                        });
+                } else {
+                    setPlayerXP(0);
+                    setPlayerMistakesDB([]);
+                }
+            }, [playerName]);
+
+            const speak = (text, rate = 0.85) => {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = rate; utterance.pitch = 1.1;
+                window.speechSynthesis.speak(utterance);
+            };
+
+            const startGame = () => {
+                setMistakes([]); setSessionXP(0);
+                let activeList = [];
+                if (selectedList === 'story') activeList = STORY_WORDS;
+                else if (selectedList === 'electricity') activeList = ELECTRICITY_WORDS;
+                else if (selectedList === 'practice') activeList = ALL_WORDS.filter(w => playerMistakesDB.includes(w.word));
+
+                const shuffled = [...activeList].sort(() => 0.5 - Math.random()).slice(0, 10);
+                setWordsPlayedList(shuffled.map(w => w.word));
+
+                const preparedWords = shuffled.map(item => {
+                    const upperWord = item.word.toUpperCase();
+                    let letterPool = upperWord.split('');
+                    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                    for (let i = 0; i < 3; i++) letterPool.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
+                    letterPool.sort(() => 0.5 - Math.random());
+                    return { ...item, upperWord, poolOptions: letterPool.map((letter, idx) => ({ id: idx, letter: letter })) };
+                });
+
+                setGameWords(preparedWords);
+                setScreen('game');
+            };
+
+            return (
+                <div className="min-h-screen bg-indigo-950 text-white font-nunito overflow-y-auto">
+                    <div className="fixed inset-0 pointer-events-none opacity-20">
+                        {[...Array(15)].map((_, i) => (
+                            <div key={i} className="absolute text-cyan-300 text-xs animate-pulse" style={{top: `${Math.random() * 100}%`, left: `${Math.random() * 100}%`}}>⚡</div>
+                        ))}
+                    </div>
+                    {screen === 'home' && <Home onStart={startGame} speak={speak} playerName={playerName} setPlayerName={setPlayerName} selectedList={selectedList} setSelectedList={setSelectedList} playerMistakesDB={playerMistakesDB} playerXP={playerXP} isLoadingProfile={isLoadingProfile} />}
+                    {screen === 'game' && <Game words={gameWords} setScreen={setScreen} speak={speak} setMistakes={setMistakes} mistakes={mistakes} playerXP={playerXP} sessionXP={sessionXP} setSessionXP={setSessionXP} playerName={playerName} />}
+                    {screen === 'finish' && <FinishScreen goHome={() => setScreen('home')} speak={speak} playerName={playerName} selectedList={selectedList} mistakes={mistakes} wordsPlayed={wordsPlayedList.length} wordsPlayedList={wordsPlayedList} playerMistakesDB={playerMistakesDB} playerXP={playerXP} sessionXP={sessionXP} setPlayerXP={setPlayerXP} setPlayerMistakesDB={setPlayerMistakesDB} />}
+                </div>
+            );
+        }
+
+        function Home({ onStart, speak, playerName, setPlayerName, selectedList, setSelectedList, playerMistakesDB, playerXP, isLoadingProfile }) {
+            const isPracticeEmpty = selectedList === 'practice' && playerMistakesDB.length === 0;
+            const isReady = playerName !== '' && selectedList !== '' && !isPracticeEmpty && !isLoadingProfile;
+
+            return (
+                <div className="flex flex-col items-center justify-center min-h-screen p-4 py-12 text-center z-10 relative">
+                    <h1 className="text-5xl md:text-7xl font-fredoka text-cyan-300 mb-8 drop-shadow-lg mt-8 tracking-wide">Spelling Lab</h1>
+                    <div className="bg-indigo-900/80 p-6 md:p-8 rounded-[2rem] border-4 border-indigo-700 w-full max-w-3xl shadow-xl backdrop-blur-sm mb-6 relative">
+                        <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4">
+                            <h2 className="text-2xl font-bold text-indigo-200 flex items-center gap-3"><IconUserCircle size={32} /> Step 1: Who is playing?</h2>
+                            {isLoadingProfile && <div className="text-yellow-400 font-bold animate-pulse">Loading Cloud...</div>}
+                            {playerName && playerName !== 'Anonymous' && !isLoadingProfile && (
+                                <div className="bg-amber-400 text-amber-950 px-4 py-2 rounded-xl font-bold font-fredoka flex items-center gap-2">
+                                    <IconTrophy size={20} /> Lvl {Math.floor(playerXP / 100) + 1} ({playerXP} XP)
+                                </div>
+                            )}
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            {STUDENT_PROFILES.map(student => (
+                                <button key={student.name} onClick={() => { setPlayerName(student.name); setSelectedList(''); }}
+                                    className={`py-3 px-2 rounded-2xl font-fredoka text-xl border-4 transition-all flex flex-col items-center justify-center gap-1
+                                    ${playerName === student.name ? 'bg-amber-400 border-amber-200 text-amber-950 scale-105 shadow-[0_6px_0_#b45309]' : 'bg-indigo-800 border-indigo-600 text-indigo-200 hover:bg-indigo-700 hover:border-indigo-400'}`}>
+                                    <span className="text-3xl">{student.emoji}</span>
+                                    <span>{student.name}</span>
+                                    {student.name === 'Anonymous' && <span className="text-[10px] opacity-80 leading-tight">(Heyy, I want to play it too!)</span>}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className={`bg-indigo-900/80 p-6 md:p-8 rounded-[2rem] border-4 border-indigo-700 w-full max-w-3xl shadow-xl mb-12 transition-opacity ${playerName && !isLoadingProfile ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+                        <h2 className="text-2xl font-bold text-indigo-200 mb-6 flex items-center gap-3"><IconBookOpen size={32} /> Step 2: Choose your list</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <button onClick={() => setSelectedList('story')} className={`py-6 rounded-2xl font-fredoka text-2xl border-4 transition-all ${selectedList === 'story' ? 'bg-green-500 border-green-300' : 'bg-indigo-800 border-indigo-600'}`}>🌳 List 1: Story</button>
+                            <button onClick={() => setSelectedList('electricity')} className={`py-6 rounded-2xl font-fredoka text-2xl border-4 transition-all ${selectedList === 'electricity' ? 'bg-cyan-500 border-cyan-300' : 'bg-indigo-800 border-indigo-600'}`}>⚡ List 2: Electricity</button>
+                            <div className="col-span-1 md:col-span-2 mt-4 p-4 rounded-3xl border-4 border-indigo-500 bg-indigo-800/40">
+                                <button onClick={() => setSelectedList('practice')} className={`w-full py-5 rounded-2xl font-fredoka text-3xl border-4 transition-all ${selectedList === 'practice' ? 'bg-purple-500 border-purple-300' : 'bg-indigo-700 border-indigo-500'}`}>
+                                    <span className="flex items-center justify-center gap-3"><IconTarget size={40} /> List 3: Practice</span>
+                                </button>
+                                <div className="mt-4 bg-indigo-950/80 border-2 border-indigo-400 p-3 rounded-2xl text-sm italic font-bold text-indigo-200 leading-tight">
+                                    ⚠️ Choose this only after practicing List 1 and 2 many times!
+                                </div>
+                                {isPracticeEmpty && <p className="text-amber-400 font-bold mt-4 animate-pulse">No mistakes recorded yet!</p>}
+                                {selectedList === 'practice' && !isPracticeEmpty && <p className="text-green-400 font-bold mt-4">You have {playerMistakesDB.length} words to practice!</p>}
+                            </div>
+                        </div>
+                    </div>
+                    <button onClick={onStart} disabled={!isReady} className={`px-12 py-6 rounded-full border-4 text-3xl font-fredoka flex items-center gap-4 active:translate-y-2 mb-12 ${isReady ? 'bg-amber-400 border-amber-200 shadow-[0_6px_0_#b45309] text-amber-950' : 'bg-gray-600 border-gray-500 text-gray-400 opacity-50'}`}><IconPlay size={40} fill="currentColor" /> START</button>
+                </div>
+            );
+        }
+
+        function Game({ words, setScreen, speak, setMistakes, mistakes, playerXP, sessionXP, setSessionXP, playerName }) {
+            const [currentIndex, setCurrentIndex] = useState(0);
+            const [feedback, setFeedback] = useState(null);
+            const [usedPoolIds, setUsedPoolIds] = useState([]);
+            const [filledCount, setFilledCount] = useState(0);
+            const [hintsLeft, setHintsLeft] = useState(2);
+            const [hintedPoolId, setHintedPoolId] = useState(null);
+
+            const currentWord = words[currentIndex];
+            useEffect(() => { if (currentWord) { speak(`${currentWord.word}. ... ${currentWord.fullSentence}`); setHintsLeft(2); setHintedPoolId(null); } }, [currentIndex, currentWord]);
+
+            const handleGuess = (opt) => {
+                if (feedback === 'correct' || usedPoolIds.includes(opt.id)) return;
+                const expectedLetter = currentWord.upperWord[filledCount];
+                if (opt.letter === expectedLetter) {
+                    const nextFilled = filledCount + 1;
+                    setFilledCount(nextFilled); setUsedPoolIds([...usedPoolIds, opt.id]); setHintedPoolId(null);
+                    if (nextFilled === currentWord.upperWord.length) {
+                        setSessionXP(prev => prev + 10); setFeedback('correct'); speak(`Great job! ${currentWord.word}.`);
+                        setTimeout(() => { setFeedback(null); setFilledCount(0); setUsedPoolIds([]); if (currentIndex + 1 < words.length) setCurrentIndex(i => i + 1); else setScreen('finish'); }, 2500);
+                    } else { speak(opt.letter); setFeedback('partial'); setTimeout(() => setFeedback(null), 300); }
+                } else {
+                    setFeedback('wrong');
+                    setMistakes(prev => !prev.includes(currentWord.word) ? [...prev, currentWord.word] : prev);
+                    speak("Try again.");
+                    setTimeout(() => setFeedback(null), 800);
+                }
+            };
+
+            const handleHint = () => {
+                if (hintsLeft > 0 && feedback !== 'correct') {
+                    setHintsLeft(prev => prev - 1); speak("Hint!");
+                    const correctOpt = currentWord.poolOptions.find(opt => opt.letter === currentWord.upperWord[filledCount] && !usedPoolIds.includes(opt.id));
+                    if (correctOpt) setHintedPoolId(correctOpt.id);
+                }
+            };
+
+            if (!currentWord) return null;
+            return (
+                <div className="flex flex-col items-center justify-start min-h-screen p-4 md:p-8 relative z-10 pb-12">
+                    <div className="w-full max-w-5xl flex items-center justify-between bg-indigo-900 border-4 border-indigo-700 rounded-full p-2 pr-8 shadow-lg mb-4">
+                        <button onClick={() => speak(currentWord.word)} className="bg-cyan-400 p-3 rounded-full text-cyan-950 active:translate-y-1 ml-2 shadow-[0_4px_0_#0891b2]"><IconVolume2 size={28} /></button>
+                        <div className="text-xl font-bold text-cyan-300 bg-indigo-950 px-4 py-2 rounded-full border-2 border-indigo-500 flex items-center gap-4">
+                            <span>{currentIndex + 1} / {words.length}</span>
+                            {playerName !== 'Anonymous' && <span className="text-amber-400 flex items-center gap-1"><IconTrophy size={18}/> {playerXP + sessionXP} XP</span>}
+                        </div>
+                    </div>
+                    <div className="w-full bg-indigo-900 h-4 rounded-full mb-6 max-w-4xl border-2 border-indigo-700 overflow-hidden"><div className="bg-amber-400 h-full transition-all duration-500" style={{width: `${(currentIndex / words.length) * 100}%`}}></div></div>
+                    <div className="w-full max-w-4xl bg-indigo-900/50 border-4 border-indigo-800 rounded-3xl p-6 mb-8 text-center text-xl font-bold text-indigo-100 italic">{currentWord.blankSentence}</div>
+                    <div className="flex flex-col items-center mb-8 w-full max-w-5xl">
+                        <div className="text-[5rem] mb-6 animate-float drop-shadow-xl">{currentWord.emoji}</div>
+                        <div className="flex items-center gap-4 mb-6">
+                            <button onClick={() => speak(currentWord.word)} className="bg-blue-500 p-4 rounded-2xl border-4 border-blue-300 text-white shadow-[0_4px_0_#1e3a8a] active:translate-y-1" title="Hear word again"><IconVolume2 size={32} /></button>
+                            <div className="flex flex-wrap justify-center gap-2">
+                                {currentWord.upperWord.split('').map((letter, idx) => {
+                                    const isFilled = idx < filledCount;
+                                    let boxStyle = "bg-indigo-800 border-4 border-dashed border-indigo-400 text-transparent opacity-60";
+                                    if (isFilled) boxStyle = "bg-green-400 text-green-950 border-4 border-green-200 scale-110 shadow-lg";
+                                    else if (idx === filledCount) boxStyle = "bg-indigo-700 border-4 border-dashed border-cyan-400 animate-pulse shadow-[0_0_15px_#22d3ee]";
+                                    return <div key={idx} className={`w-10 h-14 md:w-12 md:h-16 rounded-xl flex items-center justify-center text-2xl md:text-4xl font-fredoka uppercase transition-all ${boxStyle}`}>{isFilled ? letter : "_"}</div>;
+                                })}
+                            </div>
+                        </div>
+                        <button onClick={handleHint} disabled={hintsLeft === 0 || feedback === 'correct'} className={`px-6 py-2 rounded-full font-fredoka border-4 flex items-center gap-2 text-lg ${hintsLeft > 0 ? 'bg-yellow-400 text-yellow-900 border-yellow-200 shadow-[0_4px_0_#b45309] animate-bounce' : 'bg-slate-600 opacity-50'}`}><IconLightbulb size={24} /> Hint ({hintsLeft})</button>
+                    </div>
+                    <div className="w-full max-w-4xl mt-auto bg-indigo-950/80 pt-8 pb-4">
+                        <div className="flex flex-wrap justify-center gap-3">
+                            {currentWord.poolOptions.map((opt) => {
+                                if (usedPoolIds.includes(opt.id)) return <div key={opt.id} className="w-14 h-16 md:w-16 md:h-20"></div>;
+                                let baseClass = `w-14 h-16 md:w-16 md:h-20 rounded-2xl border-4 text-3xl font-fredoka flex items-center justify-center transition-all uppercase shrink-0 `;
+                                if (feedback === 'wrong') baseClass += 'bg-red-500 border-red-300 animate-shake shadow-[0_6px_0_#7f1d1d]';
+                                else if (hintedPoolId === opt.id) baseClass += 'bg-yellow-300 border-white text-yellow-900 shadow-[0_0_20px_#fde047] animate-pulse scale-110';
+                                else baseClass += 'bg-amber-400 border-amber-200 text-amber-950 shadow-[0_6px_0_#b45309] active:translate-y-2';
+                                return <button key={opt.id} onClick={() => handleGuess(opt)} className={baseClass}>{opt.letter}</button>;
+                            })}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function FinishScreen({ goHome, speak, playerName, selectedList, mistakes, wordsPlayed, wordsPlayedList, playerMistakesDB, playerXP, sessionXP, setPlayerXP, setPlayerMistakesDB }) {
+            const [saveStatus, setSaveStatus] = useState("Saving to Cloud...");
+            const finalXP = playerXP + sessionXP;
+            const savedRef = useRef(false);
+
+            useEffect(() => {
+                if (savedRef.current) return; savedRef.current = true;
+                speak(`Amazing work, ${playerName}! Mission Complete!`);
+                if (playerName === 'Anonymous') { setSaveStatus("Anonymous play not saved."); return; }
+
+                let updatedMistakes = [...playerMistakesDB];
+                if (selectedList === 'practice') {
+                    const correctWords = wordsPlayedList.filter(w => !mistakes.includes(w));
+                    updatedMistakes = updatedMistakes.filter(m => !correctWords.includes(m));
+                }
+                mistakes.forEach(m => { if (!updatedMistakes.includes(m)) updatedMistakes.push(m); });
+
+                setPlayerXP(finalXP);
+                setPlayerMistakesDB(updatedMistakes);
+
+                // ✅ FIX 2: savePlayerProfile now exists — no more ReferenceError crash
+                savePlayerProfile(playerName, { xp: finalXP, words: updatedMistakes });
+
+                const payload = {
+                    name: playerName,
+                    list: selectedList,
+                    score: `${wordsPlayed - mistakes.length}/${wordsPlayed}`,
+                    game: "Spelling Lab",
+                    mistakes: mistakes.join(", ") || "None",
+                    totalXP: finalXP,
+                    totalMistakes: updatedMistakes,
+                    xpEarned: sessionXP
+                };
+
+                fetch(GOOGLE_SHEET_WEBAPP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(payload)
+                })
+                .then(() => setSaveStatus("Cloud Profile Synced! ✅"))
+                .catch(() => setSaveStatus("Local Save only. ⚠️"));
+            }, []);
+
+            return (
+                <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center z-10 bg-indigo-950 overflow-hidden">
+                    <div className="absolute inset-0 pointer-events-none opacity-40">
+                        {[...Array(40)].map((_, i) => (
+                            <div key={i} className="absolute w-2 h-2 bg-yellow-400 rounded-full animate-pulse" style={{top: `${Math.random()*100}%`, left: `${Math.random()*100}%`}}></div>
+                        ))}
+                    </div>
+                    <div className="relative mb-12"><div className="text-[12rem] opacity-50 drop-shadow-[0_0_20px_#fcd34d]">⭐</div><span className="absolute inset-0 flex items-center justify-center text-[7rem] animate-float">🏆</span></div>
+                    <h2 className="text-5xl md:text-7xl font-fredoka text-cyan-300 mb-6 drop-shadow-lg leading-tight">Mission Complete!</h2>
+                    <p className="text-2xl font-bold text-indigo-100 mb-8 max-w-2xl leading-relaxed italic">Hooray <span className="text-amber-400 font-fredoka not-italic">{playerName}</span>! You scored <span className="text-green-400">{wordsPlayed - mistakes.length}/{wordsPlayed}</span>!</p>
+                    {playerName !== 'Anonymous' && <div className="bg-amber-400 text-amber-950 px-8 py-4 rounded-2xl font-black font-fredoka text-2xl flex items-center gap-3 shadow-[0_6px_0_#b45309] mb-8 animate-bounce"><IconTrophy size={36} /> +{sessionXP} XP! (Lvl {Math.floor(finalXP / 100) + 1})</div>}
+                    <div className="bg-indigo-900/80 px-6 py-3 rounded-2xl border-2 border-indigo-700 flex flex-col items-center gap-2 mb-12 text-indigo-300 font-bold max-w-lg w-full shadow-lg relative">
+                        <div className="flex items-center gap-2"><IconDatabase size={20} /> {saveStatus}</div>
+                        {mistakes.length > 0 && <div className="text-red-300 text-sm mt-2 font-normal">Words to practice: {mistakes.join(", ")}</div>}
+                    </div>
+                    <button onClick={goHome} className="bg-green-500 px-10 py-6 rounded-full border-4 border-green-300 shadow-[0_8px_0_#14532d] active:translate-y-2 text-3xl font-fredoka flex items-center gap-4 hover:scale-105 transition-transform"><IconRefresh size={32} /> Play Again</button>
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<SpellingGame />);
+    </script>
+</body>
+</html>
