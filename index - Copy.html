@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlanCraft — Sri KDU AIC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['"DM Sans"', 'sans-serif'], serif: ['"DM Serif Display"', 'serif'] },
+      colors: {
+        bg: '#f5f3ee', surface: '#ffffff', surface2: '#faf9f6', border: '#e8e4dc',
+        text: '#1a1714', text2: '#6b6560', text3: '#9c9690',
+        accent: '#2d6a4f', 'accent-light': '#e8f4ef'
+      }
+    }
+  }
+}
+</script>
+<style>
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-thumb { background: #d4d0c8; border-radius: 10px; }
+  .step { display: none; }
+  .step.active { display: block; }
+  @keyframes spin-r { to { transform: rotate(360deg); } }
+  .spin { animation: spin-r 0.85s linear infinite; }
+  .dot-1 { animation: blink 1.4s .0s infinite; }
+  .dot-2 { animation: blink 1.4s .2s infinite; }
+  .dot-3 { animation: blink 1.4s .4s infinite; }
+  @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+  #right-panel { display: flex; }
+  @keyframes savepulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+  .saving { animation: savepulse .8s ease infinite; }
+  
+  @media print {
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    html, body { height: auto !important; overflow: visible !important; background: white !important; }
+    #topbar, #left-panel, #right-toolbar, #loading-state, #empty-state, #login-screen { display: none !important; }
+    #body-container { display: block !important; height: auto !important; }
+    #right-panel { display: block !important; height: auto !important; overflow: visible !important; background: white !important; width: 100% !important; }
+    #preview-wrap { height: auto !important; overflow: visible !important; padding: 0 !important; }
+  }
+</style>
+</head>
+<body class="bg-bg text-text font-sans antialiased h-screen overflow-hidden flex flex-col">
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen" class="fixed inset-0 z-[100] bg-bg flex items-center justify-center">
+  <div class="bg-surface border border-border rounded-2xl p-8 shadow-xl w-full max-sm text-center">
+    <div class="w-12 h-12 bg-text rounded-xl flex items-center justify-center mx-auto mb-4">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.3"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+    </div>
+    <h1 class="font-serif text-[24px] mb-1">PlanCraft</h1>
+    <p class="text-text3 text-[13px] mb-6">Sri KDU AIC Lesson Planner</p>
+    
+    <button onclick="window.signInGoogle()" class="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border-2 border-border rounded-xl font-bold text-[13px] hover:border-accent hover:bg-accent-light transition-all mb-3">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Sign in with Google
+    </button>
+    
+    <div class="flex items-center gap-3 my-3">
+      <div class="flex-1 h-px bg-border"></div>
+      <span class="text-[11px] text-text3 font-bold">or</span>
+      <div class="flex-1 h-px bg-border"></div>
+    </div>
+    
+    <button onclick="window.signInAnon()" class="w-full px-4 py-3 bg-surface border-2 border-border rounded-xl font-bold text-[13px] text-text2 hover:border-accent hover:text-accent transition-all">
+      Continue as Guest
+    </button>
+    
+    <div id="login-error" class="hidden text-red-600 text-[12px] font-medium mt-3"></div>
+    <p class="text-text3 text-[11px] mt-4">Save progress across your devices</p>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<header id="topbar" class="bg-surface border-b border-border px-5 h-14 flex items-center justify-between shrink-0 z-20 shadow-sm">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 bg-text rounded-lg flex items-center justify-center shrink-0">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.3"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+    </div>
+    <div>
+      <span class="font-serif text-[17px] leading-none">PlanCraft</span>
+      <span class="text-[9px] text-text3 font-bold ml-1.5 uppercase tracking-widest hidden sm:inline">AIC Builder</span>
+    </div>
+  </div>
+  
+  <div class="flex gap-1 overflow-x-auto" id="pill-bar">
+    <button onclick="goStep(0)" id="pill-0" class="pill shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border-2 transition-all bg-text text-white border-text">1·Info</button>
+    <button onclick="goStep(1)" id="pill-1" class="pill shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border-2 transition-all border-border text-text3">2·Routine</button>
+    <button onclick="goStep(2)" id="pill-2" class="pill shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border-2 transition-all border-border text-text3">3·Subjects</button>
+    <button onclick="goStep(3)" id="pill-3" class="pill shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border-2 transition-all border-dashed border-[#b7d9c9] text-accent">4·AI ✦</button>
+    <button onclick="goStep(4)" id="pill-4" class="pill shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border-2 transition-all border-border text-text3">5·Finish</button>
+  </div>
+  
+  <div class="flex items-center gap-4">
+    <div id="saveIndicator" class="hidden items-center gap-1.5 text-[10px] font-bold text-text3 uppercase tracking-wide">
+      <div class="w-1.5 h-1.5 rounded-full bg-accent"></div>
+      <span id="saveLabel">Saved</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <span id="userDisplay" class="text-[11px] text-text2 font-bold hidden"></span>
+      <button onclick="window.doSignOut()" class="px-2.5 py-1 bg-surface border border-border rounded-lg text-text3 font-bold text-[10px] hover:border-red-300 hover:text-red-500 transition-all">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN BODY -->
+<main id="body-container" class="flex flex-1 overflow-hidden">
+  <div id="left-panel" class="shrink-0 overflow-y-auto px-5 py-6 border-r border-border bg-bg z-10" style="width:420px;">
+
+    <!-- STEP 1 -->
+    <div class="step active" id="step-0">
+      <div class="mb-5">
+        <div class="text-[10px] font-bold tracking-[.2em] uppercase text-text3 mb-1">Step 1 of 5</div>
+        <h2 class="font-serif text-[28px] leading-tight mb-1">Class <em class="text-accent not-italic">Details</em></h2>
+        <p class="text-[13px] text-text2">Select teacher, class, term and dates.</p>
+      </div>
+      <div class="bg-surface border border-border rounded-2xl p-5 mb-5 shadow-sm flex flex-col gap-4">
+        <div>
+          <label class="block text-[11px] font-bold text-text2 uppercase mb-1.5">Teacher</label>
+          <select id="teacherName" onchange="persist()" class="w-full p-2.5 border-2 border-border rounded-xl text-[13px] bg-surface2 outline-none focus:border-accent appearance-none cursor-pointer">
+            <option value="">— Select Teacher —</option>
+            <option value="Mr Wan">👨‍🏫 Mr Wan</option>
+            <option value="Mrs Selvam">👩‍🏫 Mrs Selvam</option>
+            <option value="Mrs Syaza">👩‍🏫 Mrs Syaza</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[11px] font-bold text-text2 uppercase mb-1.5">Class</label>
+            <select id="className" onchange="persist()" class="w-full p-2.5 border-2 border-border rounded-xl text-[13px] bg-surface2 outline-none focus:border-accent appearance-none cursor-pointer">
+              <option value="">— Select —</option>
+              <option value="Cheetah Class">🐆 Cheetah Class</option>
+              <option value="Koala Class">🐨 Koala Class</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-text2 uppercase mb-1.5">Term</label>
+            <div class="w-full p-2.5 border-2 border-border rounded-xl text-[13px] bg-gray-100 text-gray-500 select-none">Term 3</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[11px] font-bold text-text2 uppercase mb-1.5">Month</label>
+            <select id="termMonth" onchange="updateWeekDates();persist();" class="w-full p-2.5 border-2 border-border rounded-xl text-[13px] bg-surface2 outline-none focus:border-accent appearance-none cursor-pointer">
+              <option value="">— Month —</option>
+              <option>April</option><option>May</option><option>June</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-text2 uppercase mb-1.5">Week</label>
+            <select id="termWeekNum" onchange="updateWeekDates();persist();" class="w-full p-2.5 border-2 border-border rounded-xl text-[13px] bg-surface2 outline-none focus:border-accent appearance-none cursor-pointer">
+              <option value="">— Week —</option>
+              <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[11px] font-bold text-text2 uppercase mb-1.5">Start Date</label>
+            <input type="date" id="startDate" oninput="persist()" class="w-full p-2.5 border-2 border-border rounded-xl text-[13px] bg-surface2 outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-text2 uppercase mb-1.5">End Date</label>
+            <input type="date" id="endDate" oninput="persist()" class="w-full p-2.5 border-2 border-border rounded-xl text-[13px] bg-surface2 outline-none focus:border-accent">
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end">
+        <button onclick="goStep(1)" class="bg-text text-white px-6 py-2.5 rounded-xl font-bold text-[13px] hover:bg-gray-800 transition-all shadow-sm">Next →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step" id="step-1">
+      <div class="mb-5">
+        <div class="text-[10px] font-bold tracking-[.2em] uppercase text-text3 mb-1">Step 2 of 5</div>
+        <h2 class="font-serif text-[28px] leading-tight mb-1">Routine <em class="text-accent not-italic">Blocks</em></h2>
+        <p class="text-[13px] text-text2">Circle Time and Foundational revision topics.</p>
+      </div>
+      <div class="bg-surface border border-border rounded-2xl p-5 mb-4 shadow-sm">
+        <div class="mb-4">
+          <label class="block text-[11px] font-bold text-text2 uppercase mb-1.5">Circle Time Days</label>
+          <input type="text" id="ctDays" value="Monday & Thursday" oninput="persist()" class="w-full p-2.5 border-2 border-border rounded-xl text-[13px] bg-surface2 outline-none focus:border-accent">
+        </div>
+        <label class="block text-[11px] font-bold text-text2 uppercase mb-1.5">Activities</label>
+        <div class="flex gap-2 mb-3">
+          <input type="text" id="ctInput" placeholder="Add activity..." class="flex-1 p-2.5 border-2 border-border rounded-xl text-[13px] bg-surface2 outline-none focus:border-accent">
+          <button onclick="addCT()" class="px-4 border-2 border-border rounded-xl bg-surface2 font-bold text-xs hover:border-accent transition-all">+Add</button>
+        </div>
+        <div id="ctTags" class="flex flex-wrap gap-1.5"></div>
+      </div>
+      <div class="bg-surface border border-border rounded-2xl p-5 shadow-sm">
+        <label class="block text-[11px] font-bold text-text2 uppercase mb-1.5">Foundational Revision</label>
+        <div class="flex gap-2 mb-3">
+          <input type="text" id="fsInput" placeholder="Add topic..." class="flex-1 p-2.5 border-2 border-border rounded-xl text-[13px] bg-surface2 outline-none focus:border-accent">
+          <button onclick="addFS()" class="px-4 border-2 border-border rounded-xl bg-surface2 font-bold text-xs hover:border-accent transition-all">+Add</button>
+        </div>
+        <div id="fsTags" class="flex flex-wrap gap-1.5"></div>
+      </div>
+      <div class="flex justify-between mt-5">
+        <button onclick="goStep(0)" class="bg-surface border-2 border-border text-text2 px-5 py-2.5 rounded-xl font-bold text-[13px]">← Back</button>
+        <button onclick="goStep(2)" class="bg-text text-white px-6 py-2.5 rounded-xl font-bold text-[13px]">Next →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step" id="step-2">
+      <div class="mb-5">
+        <div class="text-[10px] font-bold tracking-[.2em] uppercase text-text3 mb-1">Step 3 of 5</div>
+        <h2 class="font-serif text-[28px] leading-tight mb-1">Teaching <em class="text-accent not-italic">Topics</em></h2>
+        <p class="text-[13px] text-text2">Outline your lessons for this week.</p>
+      </div>
+      <div id="subjContainer" class="flex flex-col gap-3 mb-4"></div>
+      <button onclick="addSubject()" class="w-full py-3.5 border-2 border-dashed border-border rounded-xl text-text2 font-bold text-[13px] hover:border-accent hover:text-accent hover:bg-accent-light transition-all">+ Add Subject</button>
+      <div class="flex justify-between mt-5">
+        <button onclick="goStep(1)" class="bg-surface border-2 border-border text-text2 px-5 py-2.5 rounded-xl font-bold text-[13px]">← Back</button>
+        <button onclick="goStep(3)" class="bg-text text-white px-6 py-2.5 rounded-xl font-bold text-[13px]">Next →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="step" id="step-3">
+      <div class="mb-5">
+        <div class="text-[10px] font-bold tracking-[.2em] uppercase text-accent mb-1">Step 4 of 5 · Optional</div>
+        <h2 class="font-serif text-[28px] leading-tight mb-1">AI <em class="text-accent not-italic">Draft</em></h2>
+        <p class="text-[13px] text-text2">Paste rough notes to auto-populate subjects.</p>
+      </div>
+      <div class="bg-surface border border-border rounded-2xl p-5 shadow-sm">
+        <textarea id="aiDraftInput" oninput="persist()" rows="9" class="w-full p-4 border-2 border-border rounded-xl text-[13px] bg-surface2 outline-none focus:border-accent resize-none leading-relaxed" placeholder="Paste rough notes here..."></textarea>
+        <div id="parseStatus" class="hidden text-[12px] font-semibold px-3 py-2.5 rounded-lg mt-3 border leading-snug"></div>
+        <div class="flex gap-2 mt-4">
+          <button id="parseBtn" onclick="parseDraft()" class="flex-1 bg-accent text-white px-4 py-2.5 rounded-xl font-bold text-[13px] hover:opacity-90 transition-all flex items-center justify-center gap-2">
+            <span id="parseBtnText">✦ Auto-fill Subjects</span>
+            <svg id="parseSpin" class="spin hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          </button>
+          <button onclick="clearDraft()" class="bg-surface border-2 border-border text-text2 px-4 py-2.5 rounded-xl font-bold text-[13px] hover:border-text transition-all">Clear</button>
+        </div>
+      </div>
+      <div class="flex justify-between mt-5">
+        <button onclick="goStep(2)" class="bg-surface border-2 border-border text-text2 px-5 py-2.5 rounded-xl font-bold text-[13px]">← Back</button>
+        <button onclick="goStep(4)" class="bg-text text-white px-6 py-2.5 rounded-xl font-bold text-[13px]">Skip →</button>
+      </div>
+    </div>
+
+    <!-- STEP 5 -->
+    <div class="step" id="step-4">
+      <div class="mb-5">
+        <div class="text-[10px] font-bold tracking-[.2em] uppercase text-text3 mb-1">Step 5 of 5</div>
+        <h2 class="font-serif text-[28px] leading-tight mb-1">Finish <em class="text-accent not-italic">Report</em></h2>
+        <p class="text-[13px] text-text2">Add final reminders, then generate.</p>
+      </div>
+      <div class="bg-surface border border-border rounded-2xl p-5 shadow-sm mb-4">
+        <div id="notesList" class="flex flex-col gap-2 mb-3"></div>
+        <button onclick="addNote()" class="w-full py-2 border-2 border-dashed border-border rounded-xl text-text3 font-bold text-[12px] hover:border-accent hover:text-accent transition-all">+ Add Reminder</button>
+      </div>
+      <div id="errBox" class="hidden bg-red-50 border border-red-200 text-red-700 text-[12px] p-3 rounded-xl mb-4 font-medium"></div>
+      <div class="flex justify-between mt-5">
+        <button onclick="goStep(3)" class="bg-surface border-2 border-border text-text2 px-5 py-2.5 rounded-xl font-bold text-[13px]">← Back</button>
+        <button id="genBtn" onclick="generate()" class="bg-gradient-to-br from-accent to-[#1e4d8c] text-white px-7 py-2.5 rounded-xl font-bold text-[14px] hover:shadow-xl transition-all flex items-center gap-2">
+          ✦ Generate Plan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="right-panel" class="flex-1 bg-[#eceae4] flex-col overflow-hidden relative">
+    <div id="right-toolbar" class="bg-white/90 backdrop-blur-md border-b border-border px-5 py-3 flex items-center justify-between shrink-0 z-20">
+      <span class="text-[10px] font-bold text-text3 uppercase tracking-[0.2em]">Preview</span>
+      <div class="flex gap-2">
+        <button onclick="confirmReset()" class="px-3 py-1.5 bg-surface border-2 border-border rounded-lg text-text2 font-bold text-[11px] hover:border-red-300 hover:text-red-500 transition-all">↺ Reset</button>
+        <button id="downloadPdfBtn" onclick="downloadPdf()" class="px-3 py-1.5 bg-text border-2 border-text rounded-lg text-white font-bold text-[11px] hover:bg-gray-800 transition-all">⬇ PDF</button>
+        <button onclick="window.print()" class="px-3 py-1.5 bg-text border-2 border-text rounded-lg text-white font-bold text-[11px] hover:bg-gray-800 transition-all">🖨 Print</button>
+      </div>
+    </div>
+    <div id="loading-state" class="hidden absolute inset-0 z-30 bg-[#eceae4]/85 backdrop-blur-sm flex-col items-center justify-center text-center">
+      <div class="w-11 h-11 border-4 border-border border-t-accent rounded-full spin mb-4"></div>
+      <h3 class="font-serif text-2xl mb-1">Craftingofficial plan…</h3>
+    </div>
+    <div class="flex-1 overflow-y-auto px-8 pt-8 pb-16 flex justify-center">
+      <div id="preview-wrap" class="w-full max-w-[780px]">
+        <div id="empty-state" class="h-[60vh] flex flex-col items-center justify-center gap-3 text-text3 opacity-40">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <p class="text-[13px] font-bold uppercase tracking-widest">Fill form to generate</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- RESET MODAL -->
+<div id="resetModal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl p-6 shadow-2xl w-full max-w-sm">
+    <h3 class="font-serif text-xl mb-2">Reset everything?</h3>
+    <p class="text-[13px] text-text2 mb-5 leading-relaxed">All form data, subjects, and the preview will be cleared.</p>
+    <div class="flex gap-3 justify-end">
+      <button onclick="document.getElementById('resetModal').classList.add('hidden')" class="px-5 py-2 border-2 border-border rounded-xl text-text2 font-bold text-[13px] hover:border-text transition-all">Cancel</button>
+      <button onclick="doReset()" class="px-5 py-2 bg-red-600 text-white rounded-xl font-bold text-[13px] hover:bg-red-700 transition-all">Yes, Reset</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script type="importmap">
+  {
+    "imports": {
+      "firebase/app": "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js",
+      "firebase/auth": "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js",
+      "firebase/firestore": "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"
+    }
+  }
+</script>
+
+<script type="module">
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, deleteDoc } from 'firebase/firestore';
+
+// ════════════════════════════════════════════════════════════════
+// FIREBASE CONFIG & INIT
+// ════════════════════════════════════════════════════════════════
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'plancraft-aic-default';
+const apiKey = "";
+
+let user = null;
+let subjects = [], ctTags = [], fsTags = [], notes = [];
+let colorIdx = 0, currentStep = 0;
+let saveTimer = null;
+let unsubscribeFirestore = null;
+
+const MONTH_STARTS = { April: new Date(2026,3,1), May: new Date(2026,4,1), June: new Date(2026,5,1) };
+const colorMap = {
+  blue: {bg:'bg-blue-50', border:'border-blue-200', iconBg:'bg-blue-100', text:'text-blue-800', hex:'#3b82f6'},
+  amber: {bg:'bg-amber-50', border:'border-amber-200', iconBg:'bg-amber-200', text:'text-amber-900', hex:'#f59e0b'},
+  green: {bg:'bg-emerald-50', border:'border-emerald-200', iconBg:'bg-emerald-100', text:'text-emerald-800', hex:'#10b981'},
+  rose: {bg:'bg-rose-50', border:'border-rose-200', iconBg:'bg-rose-200', text:'text-rose-900', hex:'#f43f5e'},
+  purple: {bg:'bg-purple-50', border:'border-purple-200', iconBg:'bg-purple-200', text:'text-purple-800', hex:'#8b5cf6'},
+  teal: {bg:'bg-teal-50', border:'border-teal-200', iconBg:'bg-teal-200', text:'text-teal-900', hex:'#14b8a6'}
+};
+const colors = Object.keys(colorMap);
+
+// ════════════════════════════════════════════════════════════════
+// AUTHENTICATION (RULE 3 Compliance)
+// ════════════════════════════════════════════════════════════════
+window.signInGoogle = async () => {
+  try {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+  } catch (err) { showLoginError(err.message); }
+};
+
+window.signInAnon = async () => {
+  try {
+    await signInAnonymously(auth);
+  } catch (err) { showLoginError(err.message); }
+};
+
+window.doSignOut = () => {
+  if (unsubscribeFirestore) unsubscribeFirestore();
+  signOut(auth);
+};
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+onAuthStateChanged(auth, async (u) => {
+  user = u;
+  if (user) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('userDisplay').textContent = user.isAnonymous ? 'Guest' : (user.displayName || user.email);
+    document.getElementById('userDisplay').classList.remove('hidden');
+    loadFirestoreData();
+  } else {
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('userDisplay').classList.add('hidden');
+    if (unsubscribeFirestore) unsubscribeFirestore();
+  }
+});
+
+// Primary Init Auth
+const initAuth = async () => {
+  if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+    await signInWithCustomToken(auth, __initial_auth_token).catch(() => {});
+  } else {
+    // Canvas standard: sign in anon if no token provided to satisfy initial rules
+    await signInAnonymously(auth).catch(() => {});
+  }
+};
+initAuth();
+
+// ════════════════════════════════════════════════════════════════
+// PERSISTENCE (Firestore RULE 1 Compliance)
+// ════════════════════════════════════════════════════════════════
+window.persist = () => {
+  if (!user) return;
+  clearTimeout(saveTimer);
+  showSaving();
+  saveTimer = setTimeout(async () => {
+    const state = {
+      teacherName: document.getElementById('teacherName').value,
+      className: document.getElementById('className').value,
+      termMonth: document.getElementById('termMonth').value,
+      termWeekNum: document.getElementById('termWeekNum').value,
+      startDate: document.getElementById('startDate').value,
+      endDate: document.getElementById('endDate').value,
+      ctDays: document.getElementById('ctDays').value,
+      aiDraft: document.getElementById('aiDraftInput').value,
+      ctTags, fsTags, subjects, notes, colorIdx, currentStep,
+      updatedAt: Date.now()
+    };
+    try {
+      // Path: /artifacts/{appId}/users/{userId}/{collectionName}/{docId}
+      await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'draft'), state);
+      showSaved();
+    } catch(e) { hideSave(); console.error(e); }
+  }, 1000);
+};
+
+function loadFirestoreData() {
+  if (!user) return;
+  if (unsubscribeFirestore) unsubscribeFirestore();
+  
+  unsubscribeFirestore = onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'draft'), (snapshot) => {
+    if (snapshot.exists()) {
+      applyStateToUI(snapshot.data());
+    } else {
+      initDefaults();
+    }
+  }, (err) => {
+    console.error("Firestore Listen Error:", err);
+  });
+}
+
+function applyStateToUI(d) {
+  document.getElementById('teacherName').value = d.teacherName || '';
+  document.getElementById('className').value = d.className || '';
+  document.getElementById('termMonth').value = d.termMonth || '';
+  document.getElementById('termWeekNum').value = d.termWeekNum || '';
+  document.getElementById('startDate').value = d.startDate || '';
+  document.getElementById('endDate').value = d.endDate || '';
+  document.getElementById('ctDays').value = d.ctDays || 'Monday & Thursday';
+  document.getElementById('aiDraftInput').value = d.aiDraft || '';
+  
+  ctTags = d.ctTags || [];
+  fsTags = d.fsTags || [];
+  subjects = d.subjects || [];
+  notes = d.notes || [];
+  colorIdx = d.colorIdx || 0;
+  
+  renderTagsUI('ctTags', ctTags);
+  renderTagsUI('fsTags', fsTags);
+  renderSubjectsUI();
+  renderNotesUI();
+  
+  const step = d.currentStep || 0;
+  if (step !== currentStep) {
+    document.getElementById('step-' + currentStep).classList.remove('active');
+    document.getElementById('step-' + step).classList.add('active');
+    currentStep = step;
+    syncPills(step);
+  }
+}
+
+function initDefaults() {
+  if (subjects.length === 0) window.addSubject();
+  if (notes.length === 0) window.addNote();
+}
+
+// ════════════════════════════════════════════════════════════════
+// DATE ENGINE
+// ════════════════════════════════════════════════════════════════
+window.updateWeekDates = () => {
+  const month = document.getElementById('termMonth').value;
+  const weekNum = parseInt(document.getElementById('termWeekNum').value);
+  if (!month || !weekNum || !MONTH_STARTS[month]) return;
+  const base = new Date(MONTH_STARTS[month]);
+  const day = base.getDay();
+  // Monday calculation: April Week 1 anchor to March 30
+  const diff = day === 0 ? -6 : 1 - day;
+  const firstMon = new Date(base);
+  firstMon.setDate(base.getDate() + diff);
+  const start = new Date(firstMon);
+  start.setDate(firstMon.getDate() + (weekNum - 1) * 7);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 4);
+  const fmt = d => new Date(d - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+  document.getElementById('startDate').value = fmt(start);
+  document.getElementById('endDate').value = fmt(end);
+  window.persist();
+};
+
+// ════════════════════════════════════════════════════════════════
+// UI METHODS
+// ════════════════════════════════════════════════════════════════
+window.goStep = (n) => {
+  document.getElementById('step-' + currentStep).classList.remove('active');
+  currentStep = n;
+  document.getElementById('step-' + n).classList.add('active');
+  syncPills(n);
+  window.persist();
+};
+
+function syncPills(n) {
+  document.querySelectorAll('.pill').forEach((p, i) => {
+    p.classList.remove('bg-text', 'text-white', 'border-text');
+    p.classList.add('border-border', 'text-text3');
+    if (i === 3) p.classList.add('border-dashed', 'border-[#b7d9c9]', 'text-accent');
+  });
+  const active = document.getElementById('pill-' + n);
+  if (active) {
+    active.classList.remove('border-border', 'text-text3', 'border-dashed', 'border-[#b7d9c9]', 'text-accent');
+    active.classList.add('bg-text', 'text-white', 'border-text');
+  }
+}
+
+window.addCT = () => {
+  const el = document.getElementById('ctInput');
+  if (!el.value.trim()) return;
+  ctTags.push(el.value.trim()); el.value = '';
+  renderTagsUI('ctTags', ctTags); window.persist();
+};
+window.addFS = () => {
+  const el = document.getElementById('fsInput');
+  if (!el.value.trim()) return;
+  fsTags.push(el.value.trim()); el.value = '';
+  renderTagsUI('fsTags', fsTags); window.persist();
+};
+window.removeTag = (type, i) => {
+  if (type === 'ct') ctTags.splice(i, 1);
+  else fsTags.splice(i, 1);
+  renderTagsUI(type + 'Tags', type === 'ct' ? ctTags : fsTags);
+  window.persist();
+};
+
+function renderTagsUI(elId, arr) {
+  const type = elId === 'ctTags' ? 'ct' : 'fs';
+  document.getElementById(elId).innerHTML = arr.map((t, i) =>
+    `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-white border border-border text-text2">
+      ${esc(t)}
+      <button onclick="removeTag('${type}',${i})" class="text-text3 hover:text-red-500 font-bold ml-1">&times;</button>
+    </span>`
+  ).join('');
+}
+
+window.addSubject = () => {
+  subjects.push({ id: Date.now(), name: '', color: colors[colorIdx++ % colors.length], days: '', lessons: [{ title: '', desc: '' }] });
+  renderSubjectsUI();
+  window.persist();
+};
+window.rmSubj = (id) => { subjects = subjects.filter(x => x.id !== id); renderSubjectsUI(); window.persist(); };
+window.updS = (id, k, v) => {
+  const s = subjects.find(x => x.id === id);
+  if (s) { s[k] = v; if (k === 'color') renderSubjectsUI(); }
+  window.persist();
+};
+window.addLesson = (id) => {
+  const s = subjects.find(x => x.id === id);
+  if (s) { s.lessons.push({ title: '', desc: '' }); renderSubjectsUI(); }
+  window.persist();
+};
+window.rmLesson = (id, i) => {
+  const s = subjects.find(x => x.id === id);
+  if (s && s.lessons.length > 1) { s.lessons.splice(i, 1); renderSubjectsUI(); }
+  window.persist();
+};
+window.updL = (id, i, k, v) => {
+  const s = subjects.find(x => x.id === id);
+  if (s && s.lessons[i]) { s.lessons[i][k] = v; window.persist(); }
+};
+
+function renderSubjectsUI() {
+  document.getElementById('subjContainer').innerHTML = subjects.map(s => `
+    <div class="border-2 border-border rounded-xl bg-surface overflow-hidden">
+      <div class="flex items-center gap-2 p-3 bg-surface2 border-b border-border">
+        <div class="w-3 h-3 rounded-full shrink-0" style="background:${colorMap[s.color].hex}"></div>
+        <input type="text" placeholder="Subject name…" value="${esc(s.name)}" oninput="updS(${s.id},'name',this.value)" class="flex-1 bg-transparent font-bold text-[13px] outline-none">
+        <button onclick="rmSubj(${s.id})" class="text-text3 hover:text-red-500 font-bold text-lg leading-none">&times;</button>
+      </div>
+      <div class="p-3 flex flex-col gap-2">
+        <input type="text" placeholder="Schedule" value="${esc(s.days)}" oninput="updS(${s.id},'days',this.value)" class="w-full p-2 border-2 border-border rounded-lg text-[12px] bg-surface2 outline-none">
+        ${s.lessons.map((l, i) => `
+          <div class="flex gap-2 items-start">
+            <div class="w-5 h-5 mt-2 rounded bg-border text-text font-bold text-[10px] flex items-center justify-center shrink-0">${i+1}</div>
+            <div class="flex-1 flex flex-col gap-1">
+              <input type="text" placeholder="Title" value="${esc(l.title)}" oninput="updL(${s.id},${i},'title',this.value)" class="w-full p-2 border-2 border-border rounded-lg text-[12px] bg-surface2">
+              <textarea placeholder="Notes..." oninput="updL(${s.id},${i},'desc',this.value)" class="w-full p-2 border-2 border-border rounded-lg text-[12px] bg-surface2 resize-none" style="min-height:40px">${esc(l.desc)}</textarea>
+            </div>
+            ${s.lessons.length > 1 ? `<button onclick="rmLesson(${s.id},${i})" class="mt-2 text-text3 hover:text-red-500 font-bold">&times;</button>` : ''}
+          </div>`).join('')}
+        <button onclick="addLesson(${s.id})" class="w-full py-1.5 mt-1 border-2 border-dashed border-border rounded-lg text-text3 text-[11px] font-bold">+ Add Lesson</button>
+        <div class="flex items-center gap-2 mt-1">
+          ${colors.map(c => `<div onclick="updS(${s.id},'color','${c}')" class="w-4 h-4 rounded-full cursor-pointer border-2 ${s.color===c ? 'border-text scale-110' : 'border-transparent'}" style="background:${colorMap[c].hex}"></div>`).join('')}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+window.addNote = () => { notes.push(''); renderNotesUI(); window.persist(); };
+function renderNotesUI() {
+  document.getElementById('notesList').innerHTML = notes.map((n, i) => `
+    <div class="flex gap-2 items-start">
+      <textarea oninput="notes[${i}]=this.value;window.persist()" class="flex-1 p-2 border-2 border-border rounded-lg text-[12px] bg-surface2 resize-none outline-none" style="min-height:40px">${esc(n)}</textarea>
+      <button onclick="notes.splice(${i},1);renderNotesUI();window.persist()" class="mt-2 text-text3 hover:text-red-500 font-bold">&times;</button>
+    </div>`).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+// GEMINI API (Supported Model RULE Compliance)
+// ════════════════════════════════════════════════════════════════
+window.parseDraft = async () => {
+  const draft = document.getElementById('aiDraftInput').value.trim();
+  if (!draft) return;
+  document.getElementById('parseBtnText').textContent = 'Parsing...';
+  document.getElementById('parseSpin').classList.remove('hidden');
+  
+  const prompt = `Extract subjects and lessons from these notes. Return JSON.
+  NOTES: ${draft}`;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    const res = await fetch(url, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents:[{parts:[{text: prompt}]}],
+        generationConfig:{responseMimeType:"application/json", responseSchema: {
+          type:"OBJECT", properties:{
+            subjects:{type:"ARRAY", items:{type:"OBJECT", properties:{
+              name:{type:"STRING"}, days:{type:"STRING"}, color:{type:"STRING"},
+              lessons:{type:"ARRAY", items:{type:"OBJECT", properties:{
+                title:{type:"STRING"}, desc:{type:"STRING"}
+              }}}
+            }}}
+          }
+        }}
+      })
+    });
+    const data = await res.json();
+    const p = JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text);
+    if(p.subjects) {
+      subjects = p.subjects.map(s => ({ id: Date.now()+Math.random(), name: s.name, days: s.days, color: s.color && colorMap[s.color] ? s.color : colors[colorIdx++%colors.length], lessons: s.lessons }));
+      renderSubjectsUI();
+      window.persist();
+    }
+  } catch(e) { console.error(e); }
+  document.getElementById('parseBtnText').textContent = '✦ Auto-fill Subjects';
+  document.getElementById('parseSpin').classList.add('hidden');
+};
+
+window.generate = async () => {
+  const teacher = document.getElementById('teacherName').value || 'Teacher';
+  const cls = document.getElementById('className').value || 'AIC Class';
+  const month = document.getElementById('termMonth').value || '';
+  const weekNum = document.getElementById('termWeekNum').value || '';
+  const sd = document.getElementById('startDate').value;
+  const ed = document.getElementById('endDate').value;
+  
+  document.getElementById('loading-state').style.display = 'flex';
+  
+  const prompt = `SCHOOL: Sri KDU AIC | Weekly Plan | CLASS: ${cls} | TEACHER: ${teacher} | TERM: Term 3 ${month} Week ${weekNum} | DATES: ${sd} to ${ed}
+  Circle Time: ${ctTags.join(', ')} | Foundational: ${fsTags.join(', ')}
+  Subjects: ${subjects.map(s => `- ${s.name} (${s.days})\n${s.lessons.map(l => `  Lesson: ${l.title} - ${l.desc}`).join('\n')}`).join('\n')}
+  Notes: ${notes.filter(Boolean).join(' | ')}
+  VISUALS: Use ONE relevant emoji for each activity. Focus on AIC context (structured).`;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    const res = await fetch(url, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents:[{parts:[{text: prompt}]}],
+        generationConfig:{responseMimeType:"application/json", responseSchema: {
+          type:"OBJECT", properties:{
+            className:{type:"STRING"}, termWeek:{type:"STRING"}, dateRange:{type:"STRING"},
+            circleTime:{type:"OBJECT", properties:{days:{type:"STRING"}, items:{type:"ARRAY",items:{type:"STRING"}}}},
+            foundational:{type:"OBJECT", properties:{items:{type:"ARRAY",items:{type:"STRING"}}}},
+            subjects:{type:"ARRAY", items:{type:"OBJECT", properties:{
+              name:{type:"STRING"}, subtitle:{type:"STRING"}, days:{type:"STRING"},
+              color:{type:"STRING"}, emoji:{type:"STRING"},
+              lessons:{type:"ARRAY", items:{type:"OBJECT", properties:{
+                title:{type:"STRING"}, objective:{type:"STRING"},
+                activities:{type:"ARRAY", items:{type:"STRING"}}
+              }}}
+            }}},
+            notes:{type:"ARRAY", items:{type:"STRING"}}
+          }
+        }}
+      })
+    });
+    const data = await res.json();
+    const plan = JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text);
+    renderPlanDoc(plan);
+  } catch(e) { alert("Generation failed."); }
+  document.getElementById('loading-state').style.display = 'none';
+};
+
+function renderPlanDoc(p) {
+  const ctItems = (p.circleTime?.items || []).map(i => `<li class="text-[12.5px] leading-snug flex gap-2">${esc(i)}</li>`).join('');
+  const fsItems = (p.foundational?.items || []).map(i => `<li class="text-[12.5px] leading-snug flex gap-2">${esc(i)}</li>`).join('');
+  
+  const subjsHtml = (p.subjects || []).map(s => {
+    const col = colorMap[s.color] || colorMap.blue;
+    const lessons = (s.lessons || []).map((l, i) => `
+      <div class="mb-4 pl-3 border-l-[3px] ${col.border} last:mb-0">
+        <div class="text-[13px] font-bold text-gray-800 mb-1">${esc(l.title)}</div>
+        <div class="bg-slate-50 px-2 py-1 rounded text-[11px] mb-2 text-slate-700"><strong>Objective:</strong> ${esc(l.objective)}</div>
+        <ul class="text-[12px] text-slate-600 space-y-1">${(l.activities || []).map(a => `<li>${esc(a)}</li>`).join('')}</ul>
+      </div>`).join('');
+    return `
+      <div class="bg-white rounded-xl border border-slate-100 overflow-hidden mb-4 shadow-sm">
+        <div class="px-4 py-3 flex items-center gap-3 border-b ${col.border} ${col.bg}">
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center text-xl shrink-0 ${col.iconBg}">${s.emoji || '📖'}</div>
+          <div><div class="text-[14px] font-bold ${col.text}">${esc(s.name)}</div><div class="text-[10px] text-slate-500 font-bold uppercase">${esc(s.days || '')}</div></div>
+        </div><div class="p-4">${lessons}</div>
+      </div>`;
+  }).join('');
+
+  let classDisplay = esc(p.className || '');
+  if (classDisplay.toLowerCase().includes('cheetah')) classDisplay = '🐆 ' + classDisplay;
+  else if (classDisplay.toLowerCase().includes('koala')) classDisplay = '🐨 ' + classDisplay;
+
+  document.getElementById('preview-wrap').innerHTML = `
+    <div id="pdf-container" class="bg-white rounded-2xl border border-[#e2ddd5] shadow-lg overflow-hidden w-full mx-auto text-[13px]">
+      <div class="p-8">
+        <div class="mb-6 pb-5 border-b-2 border-[#f0ede8]">
+          <div class="text-[10px] font-bold text-accent uppercase tracking-widest mb-1">Sri KDU International School · AIC</div>
+          <h1 class="font-serif text-[28px] text-text leading-tight mb-2">Weekly Lesson Plan</h1>
+          <div class="flex justify-between items-end mt-4">
+            <div class="text-text font-bold text-xl">${classDisplay}</div>
+            <p class="text-text3 text-[11px] font-bold uppercase tracking-widest">${esc(p.termWeek || '')} &bull; ${esc(p.dateRange || '')}</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-5 mb-6">
+          <div class="rounded-xl p-4 border border-amber-200 bg-[#fffdf5]"><div class="text-amber-900 font-bold mb-3 border-b border-amber-200/50 pb-2">Circle Time (${esc(p.circleTime?.days || 'Mon & Thu')})</div><ul class="space-y-2">${ctItems}</ul></div>
+          <div class="rounded-xl p-4 border border-indigo-200 bg-[#f8f9ff]"><div class="text-indigo-900 font-bold mb-3 border-b border-indigo-200/60 pb-2">Foundational Studies</div><ul class="space-y-2">${fsItems}</ul></div>
+        </div>
+        <div>${subjsHtml}</div>
+        ${(p.notes || []).length ? `<div class="bg-slate-800 text-slate-100 rounded-xl p-4 mt-5"><div class="text-white font-bold mb-2">Notes</div><ul class="list-disc pl-5 text-[12px] text-slate-300 space-y-1">${p.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul></div>` : ''}
+      </div>
+    </div>`;
+}
+
+window.downloadPdf = async () => {
+  const el = document.getElementById('pdf-container');
+  if (!el) return;
+  const btn = document.getElementById('downloadPdfBtn');
+  btn.textContent = '...';
+  const opt = { margin: 0.5, filename: 'PlanCraft_AIC.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } };
+  await html2pdf().set(opt).from(el).save();
+  btn.textContent = '⬇ PDF';
+};
+
+window.confirmReset = () => document.getElementById('resetModal').classList.remove('hidden');
+window.doReset = async () => {
+  document.getElementById('resetModal').classList.add('hidden');
+  if (user) await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'draft'));
+  location.reload();
+};
+
+window.clearDraft = () => { document.getElementById('aiDraftInput').value = ''; window.persist(); };
+
+function esc(s) { return typeof s === 'string' ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+function showSaving() { const i = document.getElementById('saveIndicator'); if(i) { i.classList.remove('hidden'); i.classList.add('flex', 'saving'); document.getElementById('saveLabel').textContent = 'Saving...'; } }
+function showSaved() { const i = document.getElementById('saveIndicator'); if(i) { i.classList.remove('saving'); document.getElementById('saveLabel').textContent = 'Saved ✓'; setTimeout(() => { if(i) i.classList.add('hidden'); }, 2000); } }
+function hideSave() { const i = document.getElementById('saveIndicator'); if(i) i.classList.add('hidden'); }
+
+</script>
+</body>
+</html>
